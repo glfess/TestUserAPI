@@ -118,3 +118,36 @@ docker-compose stop
 ```commandline
 docker-compose down -v
 ```
+## ⚡ Примеры запросов (cURL)
+
+Вы можете протестировать API прямо из терминала.
+
+### 1. Создание пользователя
+```bash
+curl -X 'POST' \
+  'http://localhost:8000/users/' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "username": "ivan_ivanov",
+  "email": "ivan@example.com",
+  "password": "strong_password123"
+}'
+```
+
+### 2. Получение списка (с фильтрацией)
+Показать только активных, пропустить первых двух:
+```commandline
+curl -X 'GET' 'http://localhost:8000/users/?skip=2&limit=5&show_active=true'
+```
+### 3. Частичное обновление (Soft Delete)
+```commandline
+curl -X 'PATCH' \
+  'http://localhost:8000/users/1' \
+  -H 'Content-Type: application/json' \
+  -d '{"is_deleted": true}'
+```
+
+### 4. Полное удаление из БД
+```
+curl -X 'DELETE' 'http://localhost:8000/users/1'
+```
