@@ -29,12 +29,6 @@ class UserUpdate(BaseModel):
                                     description="Новое имя пользователя"
                                     )
 
-    password: Optional[str] = Field(None,min_length=6,
-                                    max_length=24,
-                                    json_schema_extra={"example": "1q2w3e4r"},
-                                    description="Новый пароль пользователя"
-                                    )
-
     email: Optional[EmailStr] = Field(None,
                                       json_schema_extra={"example": "ivan@example.com"},
                                       description="Новый Е-мейл адрес пользователя"
@@ -59,7 +53,7 @@ class UserSchema(BaseModel):
     email: EmailStr = Field(..., json_schema_extra={"example": "ivan@example"},
                        description="Е-мейл пользователя в БД"
                        )
-    is_active: bool = Field(..., json_schema_extra={"example": "True"},
+    is_active: bool = Field(..., json_schema_extra={"example": True},
                             description="Статус активации"
                             )
     created_at: datetime = Field(..., json_schema_extra={"example": datetime(1970, 1, 1)},

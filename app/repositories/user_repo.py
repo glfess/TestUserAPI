@@ -33,7 +33,7 @@ class UserRepo:
 
         if only_deleted:
             query = query.where(User.is_deleted == True)
-        if only_active:
+        elif only_active:
             query = query.where(User.is_active == True)
 
         results = await self.db.execute(query)
@@ -51,7 +51,7 @@ class UserRepo:
         new_user = User(username=data.username, password=data.password, email=data.email)
         self.db.add(new_user)
         try:
-            await self.db.commit()
+            await self.db.flush()
         except Exception:
             await self.db.rollback()
             raise
@@ -83,4 +83,4 @@ class UserRepo:
 
     async def delete_user(self, user):
         await self.db.delete(user)
-        await self.db.commit()
+        await self.db.flush()

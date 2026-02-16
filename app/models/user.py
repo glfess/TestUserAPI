@@ -8,11 +8,11 @@ class User(Base):
 
     id: Mapped = Column(Integer, primary_key=True)
 
-    username: Mapped[str] = Column(String(255), nullable=False)
+    username: Mapped[str] = Column(String(255), nullable=False, unique=True, index=True)
 
     password: Mapped[str] = Column(String(255), nullable=False, server_default="")
 
-    email: Mapped[str] = Column(String(255), nullable=False)
+    email: Mapped[str] = Column(String(255), nullable=False, unique=True, index=True)
 
     is_active: Mapped[bool] = Column(Boolean, nullable=False, default=True)
 

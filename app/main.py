@@ -1,4 +1,5 @@
 from app.api.users.router import router
+from app.api.handlers import setup_exception_handlers
 
 from fastapi import FastAPI
 
@@ -8,6 +9,8 @@ app = FastAPI(title="Test FastAPI",
               )
 
 app.include_router(router, prefix="/api/users", tags=["users"])
+
+setup_exception_handlers(app)
 
 @app.get("/")
 async def root():
