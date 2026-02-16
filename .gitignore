@@ -26,12 +26,14 @@ wheels/
 # Databases
 pgdata/
 postgres_data/
+test_db
 
 # Environment variables
 .env
 .env.local
 .env.dev
 .env.prod
+.env.test
 
 # Alembic
 migrations/__pycache__/
@@ -42,6 +44,8 @@ migrations/__pycache__/
 *.swp
 *.swo
 .DS_Store
+.vscode
+.coverage
 
 # Docker
 .dockerproclog

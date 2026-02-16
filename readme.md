@@ -10,6 +10,7 @@
 * **Migrations:** Alembic
 * **Containerization:** Docker & Docker Compose
 * **Validation:** Pydantic v2
+* **Tests:** Pytest
 
 ---
 
@@ -54,24 +55,24 @@ Soft & Hard Delete: Поддерживается как логическое у�
 docker exec -it test_app alembic revision --autogenerate -m "ваше описание"
 ```
 Применение изменений:
-```
+```bash
 docker exec -it test_app alembic upgrade head
 ```
 Откат на шаг назад:
-```
+```bash
 docker exec -it test_app alembic downgrade -1
 ```
 🛠 Полезные команды для отладки
 Просмотр логов в реальном времени:
-```
+```bash
 docker-compose logs -f app
 ```
 Проверка таблиц напрямую в PostgreSQL:
-```
+```bash
 docker exec -it test_db psql -U postgres -d test_db -c "\dt"
 ```
 Полная очистка окружения (удаление томов и данных):
-```
+```bash
 docker-compose down -v
 ```
 
@@ -99,7 +100,7 @@ docker-compose up -d --build
 ### Шаг 3: Инициализация базы данных (Миграции)
 Для создания необходимых таблиц и индексов выполните команду Alembic внутри контейнера:
 
-```commandline
+```bash
 docker exec -it test_app alembic upgrade head
 ```
 ### Шаг 4: Проверка работоспособности
@@ -108,6 +109,12 @@ docker exec -it test_app alembic upgrade head
 Swagger UI (Интерактивная документация): http://localhost:8000/docs
 
 База данных: доступна по адресу localhost:5435 (если нужно подключиться через внешний клиент).
+
+Тесты:
+
+```bash
+pytest
+```
 
 ### Шаг 5: Остановка проекта
 Чтобы остановить контейнеры:
@@ -136,11 +143,11 @@ curl -X 'POST' \
 
 ### 2. Получение списка (с фильтрацией)
 Показать только активных, пропустить первых двух:
-```commandline
+```bash
 curl -X 'GET' 'http://localhost:8000/users/?skip=2&limit=5&show_active=true'
 ```
 ### 3. Частичное обновление (Soft Delete)
-```commandline
+```bash
 curl -X 'PATCH' \
   'http://localhost:8000/users/1' \
   -H 'Content-Type: application/json' \
@@ -148,6 +155,6 @@ curl -X 'PATCH' \
 ```
 
 ### 4. Полное удаление из БД
-```
+```bash
 curl -X 'DELETE' 'http://localhost:8000/users/1'
 ```

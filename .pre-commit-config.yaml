@@ -1,0 +1,9 @@
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0  # Версия хуков
+    hooks:
+    -   id: trailing-whitespace      # Удаляет лишние пробелы в конце строк
+    -   id: end-of-file-fixer        # Добавляет пустую строку в конец файла
+    -   id: check-yaml               # Проверяет синтаксис YAML-файлов
+    -   id: check-added-large-files  # Не дает случайно закоммитить огромные файлы (бинарники)
+    -   id: check-ast                # Проверяет, что Python код вообще компилируется

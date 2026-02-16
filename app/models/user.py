@@ -19,11 +19,3 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
     is_deleted: Mapped[bool] = Column(Boolean, nullable=False, default=False, server_default="false")
-
-    def restore_user(self):
-        self.is_deleted = False
-        self.is_active = True
-
-    def delete_user(self):
-        self.is_deleted = True
-        self.is_active = False
