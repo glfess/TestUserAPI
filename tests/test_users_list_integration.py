@@ -48,7 +48,7 @@ async def test_user_list_show_deleted(client: AsyncClient):
     )
     assert create.status_code == 201
     user_id = create.json()["id"]
-    await client.patch(f"/api/users/{user_id}", json={"is_deleted": True})
+    await client.patch(f"/api/users/{user_id}", json={"is_deleted": True, "is_active": False})
     list_default = await client.get("/api/users/")
     assert list_default.status_code == 200
     ids_default = [u["id"] for u in list_default.json()]
@@ -69,7 +69,7 @@ async def test_user_list_show_active_false_includes_inactive(client: AsyncClient
     )
     assert create.status_code == 201
     user_id = create.json()["id"]
-    await client.patch(f"/api/users/{user_id}", json={"is_deleted": True})
+    await client.patch(f"/api/users/{user_id}", json={"is_deleted": True, "is_active": False})
     response = await client.get("/api/users/?show_active=false&show_deleted=true")
     assert response.status_code == 200
     ids = [u["id"] for u in response.json()]

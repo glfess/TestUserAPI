@@ -2,14 +2,32 @@ from typing import List
 
 from fastapi import APIRouter, Depends, Query, Path, Body
 from fastapi.responses import Response
+from fastapi.security import OAuth2PasswordRequestForm
 
-from app.core.database import get_db
+from app.core.redis_service import RedisCacheService
 from app.schemas.user import UserSchema, UserCreate, UserUpdate
-from app.service import users as user_service
+from app.service.users import UserService
+from app.models.user import User
 
-from sqlalchemy.ext.asyncio import AsyncSession
+from app.api.deps import get_current_user, oauth2_scheme, get_user_service
+from app.core.limiter import RateLimiter
 
 router = APIRouter()
+
+login_limiter = RateLimiter(times=10, seconds=60)
+
+@router.post("/logout",)
+async def logout(token: str = Depends(oauth2_scheme),
+                 service: UserService = Depends(get_user_service)):
+    return await service.logout(token)
+
+@router.get("/me", dependencies=[Depends(RateLimiter(times=20, seconds=60))], summary="Получить информацию о текущем пользователе")
+async def read_users_me(current_user: User = Depends(get_current_user),
+                        service: UserService = Depends(get_user_service)):
+    return {
+        "data": current_user,
+        "source": "auth_context"
+    }
 
 @router.get("/", response_model=List[UserSchema],
          tags=["users"],
@@ -50,10 +68,10 @@ async def user_list(skip: int = Query(0,
                                        description="Лимит вывода"
                                        ),
                     show_deleted: bool = Query(False, description="Если True, покажет в том числе удаленных"),
-                    show_active: bool = Query(True, description="Если False, скроет неактивных"),
-                    db: AsyncSession = Depends(get_db)
+                    show_active: bool = Query(True, description="Если False, скроет активных"),
+                    service: UserService = Depends(get_user_service)
                     ):
-    return await user_service.user_list(skip, limit, show_deleted, show_active, db)
+    return await service.user_list(skip, limit, show_deleted, show_active)
 
 @router.get("/{user_id}",
          response_model=UserSchema,
@@ -87,10 +105,10 @@ async def user_list(skip: int = Query(0,
          })
 async def get_user(user_id: int = Path(..., description="ID пользователя", ge=1),
                    show_deleted: bool = Query(False, description="Если True, покажет в том числе удаленных"),
-                   show_active: bool = Query(True, description="Если False, скроет неактивных"),
-                   db: AsyncSession = Depends(get_db)
+                   show_active: bool = Query(True, description="Если False, скроет активных"),
+                   service: UserService = Depends(get_user_service)
                    ):
-    return await user_service.get_user(user_id, show_deleted, show_active, db)
+    return await service.get_user(user_id, show_deleted, show_active)
 
 @router.post("/",
           response_model=UserSchema,
@@ -135,9 +153,9 @@ async def get_user(user_id: int = Path(..., description="ID пользовате
                                    "короткий пароль)."}
           })
 async def create_user(data: UserCreate,
-                      db: AsyncSession = Depends(get_db)
+                      service: UserService = Depends(get_user_service)
                       ):
-    return await user_service.create_user(data, db)
+    return await service.create_user(data)
 
 @router.patch("/{user_id}",
            response_model=UserSchema,
@@ -181,9 +199,9 @@ async def create_user(data: UserCreate,
            })
 async def update_user(user_data: UserUpdate = Body(..., description="Данные для обновления (JSON)"),
                       user_id: int = Path(..., description="ID пользователя", ge=1),
-                      db: AsyncSession = Depends(get_db)
+                      service: UserService = Depends(get_user_service)
                       ):
-    return await user_service.update_user(user_data, user_id, db)
+    return await service.update_user(user_data, user_id)
 #Есть Soft_delete в Patch, но в тз не указано явно какой Delete нужен
 @router.delete("/{user_id}",
             status_code=204,
@@ -198,6 +216,23 @@ async def update_user(user_data: UserUpdate = Body(..., description="Данны�
                 404: {"description": "Пользователь не найден"}
             })
 async def delete_user(user_id: int = Path(description="Id пользователя", ge=1),
-                      db: AsyncSession = Depends(get_db)
+                      service: UserService = Depends(get_user_service)
                       ):
-    return await user_service.delete_user(user_id, db)
+    return await service.delete_user(user_id)
+
+@router.post("/login",
+             dependencies=[Depends(login_limiter)],
+             status_code=201,
+             summary="Логин пользователя",
+             description="""
+             ### Логин пользователя
+             При успешном логине выдается токен пользователю
+             """,
+             responses={
+                201: {"description": "Успешный вход"},
+                404: {"description": "Пользователь не найден"},
+                401: {"description": "Неверный логин или пароль"}
+             })
+async def login(data: OAuth2PasswordRequestForm = Depends(),
+                service: UserService = Depends(get_user_service)):
+    return await service.login(username=data.username,password=data.password)

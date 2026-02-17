@@ -29,7 +29,7 @@ async def test_update_user_soft_delete_returns_200(client: AsyncClient):
     user_id = create.json()["id"]
     response = await client.patch(
         f"/api/users/{user_id}",
-        json={"is_deleted": True},
+        json={"is_deleted": True, "is_active": False},
     )
     assert response.status_code == 200
     data = response.json()
@@ -47,7 +47,7 @@ async def test_update_user_not_found_returns_404(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_update_user_conflict_email_returns_400(client: AsyncClient):
+async def test_update_user_conflict_email_returns_409(client: AsyncClient):
     await client.post(
         "/api/users/",
         json={"username": "user_a", "password": "pass1234", "email": "taken@example.com"},
@@ -62,8 +62,8 @@ async def test_update_user_conflict_email_returns_400(client: AsyncClient):
         f"/api/users/{user_id_b}",
         json={"email": "taken@example.com"},
     )
-    assert response.status_code == 400
-    assert "email" in response.json()["detail"].lower() or "e-mail" in response.json()["detail"].lower()
+    assert response.status_code == 409
+    assert "email" in response.json()["message"].lower() or "e-mail" in response.json()["message"].lower()
 
 
 @pytest.mark.asyncio
@@ -83,8 +83,7 @@ async def test_update_user_set_active_clears_deleted(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_update_user_both_active_and_deleted_normalizes(client: AsyncClient):
-    """При передаче is_deleted=True и is_active=True сервис нормализует: is_deleted побеждает, is_active становится False."""
+async def test_update_user_both_active_and_deleted_returns_400(client: AsyncClient):
     create = await client.post(
         "/api/users/",
         json={"username": "badflags", "password": "pass1234", "email": "badflags@example.com"},
@@ -95,14 +94,15 @@ async def test_update_user_both_active_and_deleted_normalizes(client: AsyncClien
         f"/api/users/{user_id}",
         json={"is_deleted": True, "is_active": True},
     )
-    assert response.status_code == 200
+    assert response.status_code == 400
     data = response.json()
-    assert data["is_deleted"] is True
-    assert data["is_active"] is False
+
+    assert data["error"] == "InconsistentStateError"
+    assert "логики" in data["message"].lower()
 
 
 @pytest.mark.asyncio
-async def test_update_user_conflict_username_returns_400(client: AsyncClient):
+async def test_update_user_conflict_username_returns_409(client: AsyncClient):
     await client.post(
         "/api/users/",
         json={"username": "taken_username", "password": "pass1234", "email": "one@example.com"},
@@ -117,6 +117,6 @@ async def test_update_user_conflict_username_returns_400(client: AsyncClient):
         f"/api/users/{user_id_b}",
         json={"username": "taken_username"},
     )
-    assert response.status_code == 400
-    detail = response.json().get("detail", "").lower()
-    assert "username" in detail or "имя" in detail or "именем" in detail
+    assert response.status_code == 409
+    message = response.json().get("message", "").lower()
+    assert "username" in message or "имя" in message or "именем" in message

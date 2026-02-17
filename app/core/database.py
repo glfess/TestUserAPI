@@ -6,9 +6,9 @@ from app.core.config import settings
 
 engine = create_async_engine(settings.DATABASE_URL,
                              echo=False,
-                             pool_size=10,
-                             max_overflow=20,
-                             pool_timeout=30,
+                             pool_size=20,
+                             max_overflow=100,
+                             pool_timeout=60,
                              pool_recycle=3600
                              )
 
@@ -18,5 +18,10 @@ class Base(DeclarativeBase):
     pass
 
 async def get_db():
-    async with async_session_maker(bind=engine) as session:
-        yield session
+    async with async_session_maker() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise

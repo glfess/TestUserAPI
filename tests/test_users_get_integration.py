@@ -21,7 +21,7 @@ async def test_get_user_returns_200(client: AsyncClient):
 async def test_get_user_not_found_returns_404(client: AsyncClient):
     response = await client.get("/api/users/99999")
     assert response.status_code == 404
-    assert "не найден" in response.json()["detail"].lower() or "not found" in response.json()["detail"].lower()
+    assert "не найден" in response.json()["message"].lower() or "not found" in response.json()["message"].lower()
 
 
 @pytest.mark.asyncio
@@ -31,8 +31,14 @@ async def test_get_user_show_deleted_returns_200(client: AsyncClient):
         json={"username": "deleted_get", "password": "pass1234", "email": "deleted_get@example.com"},
     )
     assert create.status_code == 201
+
     user_id = create.json()["id"]
-    await client.patch(f"/api/users/{user_id}", json={"is_deleted": True})
+    patch_response = await client.patch(
+        f"/api/users/{user_id}",
+        json={"is_deleted": True, "is_active": False}
+    )
+    assert patch_response.status_code == 200
+
     response = await client.get(f"/api/users/{user_id}?show_deleted=true")
     assert response.status_code == 200
     assert response.json()["id"] == user_id

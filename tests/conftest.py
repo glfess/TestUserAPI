@@ -8,6 +8,8 @@ from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.redis import get_redis_service, get_redis_client
+from app.core.redis_service import RedisCacheService
 from app.models.user import Base
 from app.main import app
 
@@ -39,16 +41,36 @@ async def db_session(engine, prepare_db):
     )() as session:
         yield session
 
+@pytest_asyncio.fixture
+async def redis_client():
+    import redis.asyncio as redis
+    client = redis.from_url(
+        f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}",
+        encoding="utf-8",
+        decode_responses=True
+    )
+    yield client
+    await client.aclose()
 
 @pytest_asyncio.fixture
-async def client(db_session):
+async def client(db_session, redis_client):
     async def override_get_db():
         yield db_session
 
+    async def override_get_redis_client():
+        yield redis_client
+
+    async def override_get_redis_service():
+        return RedisCacheService(redis_client)
+
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_redis_client] = override_get_redis_client
+    app.dependency_overrides[get_redis_service] = override_get_redis_service
+
     async with AsyncClient(
         transport=ASGITransport(app=app),
         base_url="http://test",
     ) as ac:
         yield ac
+
     app.dependency_overrides.clear()

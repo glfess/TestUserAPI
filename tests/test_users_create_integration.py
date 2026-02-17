@@ -21,7 +21,7 @@ async def test_create_user_returns_201_and_user(client: AsyncClient):
     assert "created_at" in data
 
 @pytest.mark.asyncio
-async def test_create_user_duplicate_email_returns_400(client: AsyncClient):
+async def test_create_user_duplicate_email_returns_409(client: AsyncClient):
     await client.post(
         "/api/users/",
         json={
@@ -38,11 +38,11 @@ async def test_create_user_duplicate_email_returns_400(client: AsyncClient):
             "email": "same@example.com",
         },
     )
-    assert response.status_code == 400
-    assert "E-Mail" in response.json()["detail"] or "email" in response.json()["detail"].lower()
+    assert response.status_code == 409
+    assert "E-Mail" in response.json()["message"] or "email" in response.json()["message"].lower()
 
 @pytest.mark.asyncio
-async def test_create_user_duplicate_username_returns_400(client: AsyncClient):
+async def test_create_user_duplicate_username_returns_409(client: AsyncClient):
     await client.post(
         "/api/users/",
         json={
@@ -59,11 +59,11 @@ async def test_create_user_duplicate_username_returns_400(client: AsyncClient):
             "email": "second@example.com",
         },
     )
-    assert response.status_code == 400
-    detail = response.json()["detail"].lower()
+    assert response.status_code == 409
+    message = response.json()["message"].lower()
     assert (
-        "именем" in detail
-        or "зарегистрирован" in detail
+        "username" in message
+        or "существует" in message
     )
 
 

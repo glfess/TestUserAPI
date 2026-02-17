@@ -1,10 +1,13 @@
 from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 
 from app.models.user import User
 from app.schemas.user import UserCreate
 
 from fastapi import Depends
+
+from typing import Optional, List
 
 class UserRepo:
     def __init__(self, db: AsyncSession):
@@ -13,14 +16,14 @@ class UserRepo:
     async def get_list(self,
                        skip: int = 0,
                        limit: int = 10,
-                       only_deleted: bool = False,
-                       only_active: bool = True):
+                       show_deleted: bool = False,
+                       show_active: bool = True) -> List[User]:
         query = select(User).offset(skip).limit(limit).order_by(User.id)
 
-        if only_deleted:
-            query = query.where(User.is_deleted == True)
-        if only_active:
-            query = query.where(User.is_active == True)
+        if not show_deleted:
+            query = query.where(User.is_deleted == False)
+        if not show_active:
+            query = query.where(User.is_active == False)
 
         results = await self.db.execute(query)
         return results.scalars().all()
@@ -47,15 +50,14 @@ class UserRepo:
         results = await self.db.execute(query)
         return results.scalars().first()
 
-    async def create_user(self, data: UserCreate):
-        new_user = User(username=data.username, password=data.password, email=data.email)
+    async def create_user(self, user_data: dict):
+        new_user = User(**user_data)
         self.db.add(new_user)
         try:
             await self.db.flush()
-        except Exception:
-            await self.db.rollback()
+            await self.db.refresh(new_user)
+        except IntegrityError:
             raise
-        await self.db.refresh(new_user)
         return new_user
 
     async def get_conflicting_users(self,
@@ -74,13 +76,18 @@ class UserRepo:
         results = await self.db.execute(query)
         return results.scalars().one_or_none()
 
-    async def update_user(self, user_model: User, update_user: dict):
+    async def update_user(self, user_model: User, update_user: dict) -> User:
         for key, value in update_user.items():
             setattr(user_model, key, value)
 
         await self.db.flush()
         return user_model
 
-    async def delete_user(self, user):
+    async def delete_user(self, user) -> None:
         await self.db.delete(user)
         await self.db.flush()
+
+    async def get_user_by_username(self, username: str) -> Optional[User]:
+        query = select(User).where(User.username == username)
+        result = await self.db.execute(query)
+        return result.scalars().one_or_none()
