@@ -13,6 +13,14 @@ from app.core.redis_service import RedisCacheService
 from app.models.user import Base
 from app.main import app
 
+@pytest.fixture(scope="session")
+def event_loop():
+    try:
+        return asyncio.get_running_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        return loop
 
 @pytest_asyncio.fixture
 async def engine():
@@ -44,13 +52,21 @@ async def db_session(engine, prepare_db):
 @pytest_asyncio.fixture
 async def redis_client():
     import redis.asyncio as redis
-    client = redis.from_url(
+    pool = redis.ConnectionPool.from_url(
         f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}",
         encoding="utf-8",
         decode_responses=True
     )
+    client = redis.Redis(connection_pool=pool)
+
     yield client
     await client.aclose()
+    await pool.disconnect()
+
+@pytest_asyncio.fixture(autouse=True)
+async def flush_redis(redis_client):
+    yield
+    await redis_client.flushdb()
 
 @pytest_asyncio.fixture
 async def client(db_session, redis_client):
@@ -60,12 +76,8 @@ async def client(db_session, redis_client):
     async def override_get_redis_client():
         yield redis_client
 
-    async def override_get_redis_service():
-        return RedisCacheService(redis_client)
-
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_redis_client] = override_get_redis_client
-    app.dependency_overrides[get_redis_service] = override_get_redis_service
 
     async with AsyncClient(
         transport=ASGITransport(app=app),

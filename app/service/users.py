@@ -26,13 +26,13 @@ class UserService:
 
         async with self.session_factory() as db:
             repo = UserRepo(db)
-            user = await repo.get_user_by_id(user_id, show_deleted, show_active, db)
+            user = await repo.get_user_by_id(user_id, show_deleted, show_active)
             if not user:
                 raise e.EntityNotFoundError()
-
-            user_data = UserSchema.from_orm(user).model_dump_json(exclude_unset=True)
-            await self.cache_service.set_user(user_id, user_data, expire=300)
-        return user_data
+            user_schema = UserSchema.from_orm(user)
+            json_data = user_schema.model_dump_json(exclude_unset=True)
+            await self.cache_service.set_user(user_id, json_data, expire=300)
+        return user_schema.model_dump()
 
     async def authenticate_user(self, token: str):
         if await self.cache_service.is_token_blacklisted(token):
@@ -78,8 +78,10 @@ class UserService:
 
             try:
                 new_user = await repo.create_user(user_data)
+                await db.commit()
                 return new_user
             except IntegrityError:
+                await db.rollback()
                 raise e.AlreadyExistsError("Пользователь с таким username или email уже существует")
 
     async def update_user(self, user_data: UserUpdate,
@@ -110,8 +112,10 @@ class UserService:
             try:
                 updated_model = await repo.update_user(user, updated_dict)
                 await self.cache_service.delete_user(user_id)
+                await db.commit()
                 return updated_model
             except IntegrityError:
+                await db.rollback()
                 raise e.InconsistentStateError()
 
     async def login(self, username: str, password: str):
@@ -155,4 +159,5 @@ class UserService:
                 raise e.EntityNotFoundError()
 
             await repo.delete_user(user)
+            await db.commit()
             return None
